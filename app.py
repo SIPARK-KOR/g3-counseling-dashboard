@@ -212,6 +212,27 @@ def generate_checklist(record: dict) -> list[str]:
 # ------------------------------
 # 시각화 함수
 # ------------------------------
+def color_level(level: str) -> str:
+    """역량 수준을 색상 이모지와 함께 표시한다."""
+    color_map = {
+        "상": "🟢 상",
+        "중상": "🟡 중상",
+        "중": "🟠 중",
+        "중하": "🔴 중하",
+        "하": "⚫ 하"
+    }
+    return color_map.get(level, level)
+
+
+def plot_grade_chart(korean_gpa: float, math_gpa: float, english_gpa: float, inquiry_gpa: float) -> None:
+    """과목별 내신 등급을 막대그래프로 표시한다."""
+    grade_df = pd.DataFrame({
+        "과목": ["국어", "수학", "영어", "탐구"],
+        "등급": [korean_gpa, math_gpa, english_gpa, inquiry_gpa]
+    })
+    st.bar_chart(grade_df.set_index("과목"))
+
+
 def plot_keyword_chart(keyword_df: pd.DataFrame) -> None:
     """키워드 빈도 막대그래프를 그린다."""
     if keyword_df.empty:
@@ -433,7 +454,29 @@ def main() -> None:
             save_record(record)
             st.success("상담 기록이 저장되었다. 같은 학생 코드로 저장하면 상담 이력이 누적된다.")
 
-    st.subheader("7. 상담 요약 및 다음 상담 체크리스트")
+    st.subheader("7. 학생 핵심 요약 대시보드")
+    card1, card2, card3, card4 = st.columns(4)
+    with card1:
+        st.metric("내신 평균", f"{gpa:.2f}")
+    with card2:
+        st.metric("수학 내신", f"{math_gpa:.2f}")
+    with card3:
+        st.metric("희망 대학 라인", desired_university_line if desired_university_line else "미입력")
+    with card4:
+        st.metric("희망 전공", desired_major_1 if desired_major_1 else "미입력")
+
+    dash_col1, dash_col2 = st.columns([1, 1])
+    with dash_col1:
+        st.markdown("**역량 한눈에 보기**")
+        st.markdown(f"- 학업역량: {color_level(academic_level)}")
+        st.markdown(f"- 진로역량: {color_level(career_level)}")
+        st.markdown(f"- 공동체역량: {color_level(community_level)}")
+        st.markdown(f"- 최근 성적 흐름: **{score_trend}**")
+    with dash_col2:
+        st.markdown("**과목별 내신 등급 시각화**")
+        plot_grade_chart(korean_gpa, math_gpa, english_gpa, inquiry_gpa)
+
+    st.subheader("8. 상담 요약 및 다음 상담 체크리스트")
     current_record = {
         "student_code": student_code.strip(),
         "student_status": student_status,
@@ -481,7 +524,7 @@ def main() -> None:
         else:
             st.write("입력 후 체크리스트가 표시된다.")
 
-    st.subheader("8. 상담 메모 키워드 분석")
+    st.subheader("9. 상담 메모 키워드 분석")
     keyword_df = get_keyword_counts(memo)
     col20, col21 = st.columns([1, 1])
     with col20:
@@ -489,7 +532,7 @@ def main() -> None:
     with col21:
         plot_keyword_chart(keyword_df)
 
-    st.subheader("9. 전체 학생 비교 분석")
+    st.subheader("10. 전체 학생 비교 분석")
     df = load_data()
 
     if df.empty:
@@ -572,7 +615,7 @@ def main() -> None:
                 line_counts.columns = ["희망 대학 라인", "학생 수"]
                 st.dataframe(line_counts, use_container_width=True)
 
-    st.subheader("10. 저장된 상담 기록 조회 및 삭제")
+    st.subheader("11. 저장된 상담 기록 조회 및 삭제")
     search_code = st.text_input("조회할 학생 코드", placeholder="예: 3122")
 
     if search_code.strip():
