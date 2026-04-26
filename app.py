@@ -264,7 +264,7 @@ def check_password() -> bool:
     if st.session_state["password_ok"]:
         return True
 
-    st.title("고3 진학 상담 기록 및 분석 시스템")
+    st.title("진학 상담 기록 및 분석 시스템")
     st.write("이 시스템은 상담 기록 보호를 위해 비밀번호 입력 후 사용할 수 있다.")
 
     password = st.text_input("비밀번호", type="password")
@@ -285,13 +285,13 @@ def check_password() -> bool:
 # ------------------------------
 def main() -> None:
     """Streamlit 메인 화면을 구성한다."""
-    st.set_page_config(page_title="고3 진학 상담 기록 대시보드", layout="wide")
+    st.set_page_config(page_title="진학 상담 기록 대시보드", layout="wide")
 
     if not check_password():
         st.stop()
 
-    st.title("고3 진학 상담 기록 및 키워드 분석 대시보드")
-    st.write("고3 담임 및 진학 담당 교사가 학생 상담 기록을 저장하고 요약할 수 있는 1차 버전이다.")
+    st.title("진학 상담 기록 및 키워드 분석 대시보드")
+    st.write("담임 교사가 학생 상담 기록을 저장하고 요약할 수 있는 1차 버전이다.")
 
     with st.sidebar:
         st.header("안내")
