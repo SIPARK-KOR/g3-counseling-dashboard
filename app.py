@@ -168,16 +168,52 @@ def plot_keyword_chart(keyword_df: pd.DataFrame) -> None:
 
 
 # ------------------------------
+# 로그인 함수
+# ------------------------------
+def check_password() -> bool:
+    """공통 비밀번호를 확인한다."""
+    correct_password = "1234"
+
+    if "password_ok" not in st.session_state:
+        st.session_state["password_ok"] = False
+
+    if st.session_state["password_ok"]:
+        return True
+
+    st.title("고3 진학 상담 기록 및 분석 시스템")
+    st.write("이 시스템은 상담 기록 보호를 위해 비밀번호 입력 후 사용할 수 있다.")
+
+    password = st.text_input("비밀번호", type="password")
+
+    if st.button("로그인"):
+        if password == correct_password:
+            st.session_state["password_ok"] = True
+            st.success("로그인되었습니다.")
+            st.rerun()
+        else:
+            st.error("비밀번호가 올바르지 않습니다.")
+
+    return False
+
+
+# ------------------------------
 # 화면 구성
 # ------------------------------
 def main() -> None:
     """Streamlit 메인 화면을 구성한다."""
     st.set_page_config(page_title="고3 진학 상담 기록 대시보드", layout="wide")
+
+    if not check_password():
+        st.stop()
+
     st.title("고3 진학 상담 기록 및 키워드 분석 대시보드")
     st.write("고3 담임 및 진학 담당 교사가 학생 상담 기록을 저장하고 요약할 수 있는 1차 버전이다.")
 
     with st.sidebar:
         st.header("안내")
+        if st.button("로그아웃"):
+            st.session_state["password_ok"] = False
+            st.rerun()
         st.write("- 1차 버전: 입력, 저장, 조회, 키워드 분석")
         st.write("- 학생 개인정보 보호를 위해 학생 이름 대신 학생 코드를 사용한다.")
         st.write("- 이후 버전: 로그인, DB 연동, AI 문장 생성 추가 가능")
