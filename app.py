@@ -1,3 +1,4 @@
+import ast
 import re
 from collections import Counter
 from datetime import datetime
@@ -14,6 +15,21 @@ STOPWORDS = {
     "대한", "통해", "위한", "관련", "이번", "다음", "현재", "조금", "매우", "있음"
 }
 
+COLUMNS = [
+    "timestamp", "student_code", "student_status", "desired_university_line",
+    "desired_major_1", "desired_major_2", "priority_type", "career_decision",
+    "gpa", "korean_gpa", "math_gpa", "english_gpa", "inquiry_gpa",
+    "mock_korean", "mock_math", "mock_english", "mock_inquiry", "score_trend",
+    "subject_record", "club_activity", "career_activity", "reading_activity",
+    "academic_level", "career_level", "community_level",
+    "upper_universities", "target_universities", "safe_universities", "admission_strategy",
+    "strengths", "improvements", "memo", "next_plan"
+]
+
+STATUS_OPTIONS = ["학생부종합", "학생부교과", "논술", "정시", "면접 중심", "실기/특기", "기타"]
+LEVEL_OPTIONS = ["상", "중상", "중", "중하", "하"]
+GRADE_OPTIONS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+
 
 # ------------------------------
 # 데이터 처리 함수
@@ -21,19 +37,12 @@ STOPWORDS = {
 def load_data() -> pd.DataFrame:
     """저장된 상담 데이터를 불러온다."""
     if DATA_FILE.exists():
-        return pd.read_csv(DATA_FILE)
-
-    columns = [
-        "timestamp", "student_code", "student_status", "desired_university_line",
-        "desired_major_1", "desired_major_2", "priority_type", "career_decision",
-        "gpa", "korean_gpa", "math_gpa", "english_gpa", "inquiry_gpa",
-        "mock_korean", "mock_math", "mock_english", "mock_inquiry", "score_trend",
-        "subject_record", "club_activity", "career_activity", "reading_activity",
-        "academic_level", "career_level", "community_level",
-        "upper_universities", "target_universities", "safe_universities", "admission_strategy",
-        "strengths", "improvements", "memo", "next_plan"
-    ]
-    return pd.DataFrame(columns=columns)
+        df = pd.read_csv(DATA_FILE)
+        for col in COLUMNS:
+            if col not in df.columns:
+                df[col] = ""
+        return df
+    return pd.DataFrame(columns=COLUMNS)
 
 
 def save_record(record: dict) -> None:
@@ -48,6 +57,60 @@ def delete_records_by_ids(record_ids: list[int]) -> None:
     df = load_data()
     df = df.drop(index=record_ids)
     df.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
+
+
+def get_latest_record(student_code: str) -> dict | None:
+    """학생 코드에 해당하는 최신 상담 기록을 불러온다."""
+    df = load_data()
+    if df.empty or not student_code.strip():
+        return None
+
+    matched = df[df["student_code"].astype(str) == student_code.strip()].copy()
+    if matched.empty:
+        return None
+
+    if "timestamp" in matched.columns:
+        matched = matched.sort_values(by="timestamp", ascending=False)
+
+    return matched.iloc[0].to_dict()
+
+
+def parse_status(value) -> list[str]:
+    """CSV에 저장된 준비 유형 값을 multiselect 기본값으로 변환한다."""
+    if isinstance(value, list):
+        return [v for v in value if v in STATUS_OPTIONS]
+
+    if pd.isna(value) or str(value).strip() == "":
+        return ["학생부종합"]
+
+    text = str(value)
+    try:
+        parsed = ast.literal_eval(text)
+        if isinstance(parsed, list):
+            return [v for v in parsed if v in STATUS_OPTIONS]
+    except Exception:
+        pass
+
+    return [option for option in STATUS_OPTIONS if option in text] or ["학생부종합"]
+
+
+def get_loaded_value(record: dict | None, key: str, default):
+    """불러온 상담 기록이 있으면 해당 값을, 없으면 기본값을 반환한다."""
+    if not record:
+        return default
+
+    value = record.get(key, default)
+    if pd.isna(value) or value == "":
+        return default
+    return value
+
+
+def get_float_value(record: dict | None, key: str, default: float) -> float:
+    """숫자 입력값을 안전하게 float로 변환한다."""
+    try:
+        return float(get_loaded_value(record, key, default))
+    except Exception:
+        return default
 
 
 # ------------------------------
@@ -214,83 +277,119 @@ def main() -> None:
         if st.button("로그아웃"):
             st.session_state["password_ok"] = False
             st.rerun()
-        st.write("- 1차 버전: 입력, 저장, 조회, 키워드 분석")
+        st.write("- 기존 학생 상담 기록을 불러온 뒤 일부만 수정하여 새 상담 기록으로 저장할 수 있다.")
         st.write("- 학생 개인정보 보호를 위해 학생 이름 대신 학생 코드를 사용한다.")
-        st.write("- 이후 버전: 로그인, DB 연동, AI 문장 생성 추가 가능")
+        st.write("- 이후 버전: 사용자별 DB 저장, AI 문장 생성 추가 가능")
+
+    # 기존 상담 불러오기
+    st.subheader("0. 기존 상담 기록 불러오기")
+    load_col1, load_col2 = st.columns([2, 1])
+    with load_col1:
+        load_code = st.text_input("불러올 학생 코드", placeholder="예: 3101")
+    with load_col2:
+        st.write("")
+        st.write("")
+        if st.button("최신 상담 기록 불러오기", use_container_width=True):
+            loaded = get_latest_record(load_code)
+            if loaded is None:
+                st.warning("해당 학생 코드의 상담 기록이 없습니다.")
+                st.session_state["loaded_record"] = None
+            else:
+                st.session_state["loaded_record"] = loaded
+                st.success("최신 상담 기록을 불러왔습니다. 아래 입력칸에서 필요한 부분만 수정하세요.")
+                st.rerun()
+
+    loaded_record = st.session_state.get("loaded_record")
+    if loaded_record:
+        st.info(f"현재 {loaded_record.get('student_code', '')} 학생의 최신 상담 기록을 불러온 상태입니다. 수정 후 저장하면 새 상담 기록으로 추가됩니다.")
+        if st.button("불러온 내용 초기화"):
+            st.session_state["loaded_record"] = None
+            st.rerun()
 
     st.subheader("1. 학생 기본 정보")
     col1, col2, col3 = st.columns(3)
     with col1:
-        student_code = st.text_input("학생 코드", placeholder="예: 3122")
-        career_decision = st.selectbox("진로 결정 상태", ["확정", "어느 정도 확정", "탐색 중"])
+        student_code = st.text_input("학생 코드", value=str(get_loaded_value(loaded_record, "student_code", "")), placeholder="예: 3122")
+        career_decision_default = str(get_loaded_value(loaded_record, "career_decision", "확정"))
+        career_decision = st.selectbox("진로 결정 상태", ["확정", "어느 정도 확정", "탐색 중"], index=["확정", "어느 정도 확정", "탐색 중"].index(career_decision_default) if career_decision_default in ["확정", "어느 정도 확정", "탐색 중"] else 0)
     with col2:
         student_status = st.multiselect(
             "학생 준비 유형",
-            ["학생부종합", "학생부교과", "논술", "정시", "면접 중심", "실기/특기", "기타"],
-            default=["학생부종합"]
+            STATUS_OPTIONS,
+            default=parse_status(get_loaded_value(loaded_record, "student_status", ["학생부종합"]))
         )
-        priority_type = st.selectbox("상담 우선순위", ["전공 우선", "대학 우선", "대학·전공 균형", "아직 모름"])
+        priority_default = str(get_loaded_value(loaded_record, "priority_type", "전공 우선"))
+        priority_options = ["전공 우선", "대학 우선", "대학·전공 균형", "아직 모름"]
+        priority_type = st.selectbox("상담 우선순위", priority_options, index=priority_options.index(priority_default) if priority_default in priority_options else 0)
     with col3:
-        desired_university_line = st.text_input("희망 대학 라인", placeholder="예: 인서울, 부산권 국립대, 수도권 중상위권")
-        desired_major_1 = st.text_input("희망 전공 1지망", placeholder="예: 컴퓨터공학")
-        desired_major_2 = st.text_input("희망 전공 2지망", placeholder="예: 산업공학")
+        desired_university_line = st.text_input("희망 대학 라인", value=str(get_loaded_value(loaded_record, "desired_university_line", "")), placeholder="예: 인서울, 부산권 국립대, 수도권 중상위권")
+        desired_major_1 = st.text_input("희망 전공 1지망", value=str(get_loaded_value(loaded_record, "desired_major_1", "")), placeholder="예: 컴퓨터공학")
+        desired_major_2 = st.text_input("희망 전공 2지망", value=str(get_loaded_value(loaded_record, "desired_major_2", "")), placeholder="예: 산업공학")
 
     st.subheader("2. 성적 정보")
     col4, col5, col6, col7 = st.columns(4)
     with col4:
-        gpa = st.number_input("내신 평균 등급", min_value=1.0, max_value=9.0, value=2.50, step=0.01, format="%.2f")
-        korean_gpa = st.number_input("국어 내신 등급", min_value=1.0, max_value=9.0, value=2.50, step=0.01, format="%.2f")
+        gpa = st.number_input("내신 평균 등급", min_value=1.0, max_value=9.0, value=get_float_value(loaded_record, "gpa", 2.50), step=0.01, format="%.2f")
+        korean_gpa = st.number_input("국어 내신 등급", min_value=1.0, max_value=9.0, value=get_float_value(loaded_record, "korean_gpa", 2.50), step=0.01, format="%.2f")
     with col5:
-        math_gpa = st.number_input("수학 내신 등급", min_value=1.0, max_value=9.0, value=2.50, step=0.01, format="%.2f")
-        english_gpa = st.number_input("영어 내신 등급", min_value=1.0, max_value=9.0, value=2.50, step=0.01, format="%.2f")
+        math_gpa = st.number_input("수학 내신 등급", min_value=1.0, max_value=9.0, value=get_float_value(loaded_record, "math_gpa", 2.50), step=0.01, format="%.2f")
+        english_gpa = st.number_input("영어 내신 등급", min_value=1.0, max_value=9.0, value=get_float_value(loaded_record, "english_gpa", 2.50), step=0.01, format="%.2f")
     with col6:
-        inquiry_gpa = st.number_input("탐구 내신 등급", min_value=1.0, max_value=9.0, value=2.50, step=0.01, format="%.2f")
-        score_trend = st.selectbox("최근 성적 흐름", ["상승", "유지", "하락", "판단 보류"])
+        inquiry_gpa = st.number_input("탐구 내신 등급", min_value=1.0, max_value=9.0, value=get_float_value(loaded_record, "inquiry_gpa", 2.50), step=0.01, format="%.2f")
+        trend_default = str(get_loaded_value(loaded_record, "score_trend", "유지"))
+        trend_options = ["상승", "유지", "하락", "판단 보류"]
+        score_trend = st.selectbox("최근 성적 흐름", trend_options, index=trend_options.index(trend_default) if trend_default in trend_options else 1)
     with col7:
-        mock_korean = st.selectbox("모의고사 국어", ["1", "2", "3", "4", "5", "6", "7", "8", "9"])
-        mock_math = st.selectbox("모의고사 수학", ["1", "2", "3", "4", "5", "6", "7", "8", "9"])
-        mock_english = st.selectbox("모의고사 영어", ["1", "2", "3", "4", "5", "6", "7", "8", "9"])
-        mock_inquiry = st.selectbox("모의고사 탐구", ["1", "2", "3", "4", "5", "6", "7", "8", "9"])
+        mock_korean_default = str(get_loaded_value(loaded_record, "mock_korean", "1"))
+        mock_math_default = str(get_loaded_value(loaded_record, "mock_math", "1"))
+        mock_english_default = str(get_loaded_value(loaded_record, "mock_english", "1"))
+        mock_inquiry_default = str(get_loaded_value(loaded_record, "mock_inquiry", "1"))
+        mock_korean = st.selectbox("모의고사 국어", GRADE_OPTIONS, index=GRADE_OPTIONS.index(mock_korean_default) if mock_korean_default in GRADE_OPTIONS else 0)
+        mock_math = st.selectbox("모의고사 수학", GRADE_OPTIONS, index=GRADE_OPTIONS.index(mock_math_default) if mock_math_default in GRADE_OPTIONS else 0)
+        mock_english = st.selectbox("모의고사 영어", GRADE_OPTIONS, index=GRADE_OPTIONS.index(mock_english_default) if mock_english_default in GRADE_OPTIONS else 0)
+        mock_inquiry = st.selectbox("모의고사 탐구", GRADE_OPTIONS, index=GRADE_OPTIONS.index(mock_inquiry_default) if mock_inquiry_default in GRADE_OPTIONS else 0)
 
     st.subheader("3. 학생부 및 활동 핵심 내용")
     col8, col9 = st.columns(2)
     with col8:
-        subject_record = st.text_area("교과 세특 핵심 내용", placeholder="예: 수학 탐구, 통계 분석, 문제 해결 과정 등", height=100)
-        club_activity = st.text_area("동아리 활동", placeholder="예: 역할, 활동 주제, 지속성", height=100)
+        subject_record = st.text_area("교과 세특 핵심 내용", value=str(get_loaded_value(loaded_record, "subject_record", "")), placeholder="예: 수학 탐구, 통계 분석, 문제 해결 과정 등", height=100)
+        club_activity = st.text_area("동아리 활동", value=str(get_loaded_value(loaded_record, "club_activity", "")), placeholder="예: 역할, 활동 주제, 지속성", height=100)
     with col9:
-        career_activity = st.text_area("진로 활동", placeholder="예: 전공 탐색, 진로 발표, 탐구 보고서", height=100)
-        reading_activity = st.text_area("독서 및 기타 활동", placeholder="예: 전공 관련 독서, 봉사, 자율활동", height=100)
+        career_activity = st.text_area("진로 활동", value=str(get_loaded_value(loaded_record, "career_activity", "")), placeholder="예: 전공 탐색, 진로 발표, 탐구 보고서", height=100)
+        reading_activity = st.text_area("독서 및 기타 활동", value=str(get_loaded_value(loaded_record, "reading_activity", "")), placeholder="예: 전공 관련 독서, 봉사, 자율활동", height=100)
 
     st.subheader("4. 학생부종합전형 역량 판단")
-    level_options = ["상", "중상", "중", "중하", "하"]
+    academic_default = str(get_loaded_value(loaded_record, "academic_level", "중"))
+    career_default = str(get_loaded_value(loaded_record, "career_level", "중"))
+    community_default = str(get_loaded_value(loaded_record, "community_level", "중"))
     col10, col11, col12 = st.columns(3)
     with col10:
-        academic_level = st.selectbox("학업역량", level_options)
+        academic_level = st.selectbox("학업역량", LEVEL_OPTIONS, index=LEVEL_OPTIONS.index(academic_default) if academic_default in LEVEL_OPTIONS else 2)
     with col11:
-        career_level = st.selectbox("진로역량", level_options)
+        career_level = st.selectbox("진로역량", LEVEL_OPTIONS, index=LEVEL_OPTIONS.index(career_default) if career_default in LEVEL_OPTIONS else 2)
     with col12:
-        community_level = st.selectbox("공동체역량", level_options)
+        community_level = st.selectbox("공동체역량", LEVEL_OPTIONS, index=LEVEL_OPTIONS.index(community_default) if community_default in LEVEL_OPTIONS else 2)
 
     st.subheader("5. 지원 전략")
     col13, col14, col15 = st.columns(3)
     with col13:
-        upper_universities = st.text_area("상향 지원 후보", placeholder="예: A대 ○○학과", height=90)
+        upper_universities = st.text_area("상향 지원 후보", value=str(get_loaded_value(loaded_record, "upper_universities", "")), placeholder="예: A대 ○○학과", height=90)
     with col14:
-        target_universities = st.text_area("적정 지원 후보", placeholder="예: B대 ○○학과", height=90)
+        target_universities = st.text_area("적정 지원 후보", value=str(get_loaded_value(loaded_record, "target_universities", "")), placeholder="예: B대 ○○학과", height=90)
     with col15:
-        safe_universities = st.text_area("안정 지원 후보", placeholder="예: C대 ○○학과", height=90)
+        safe_universities = st.text_area("안정 지원 후보", value=str(get_loaded_value(loaded_record, "safe_universities", "")), placeholder="예: C대 ○○학과", height=90)
 
-    admission_strategy = st.text_area("지원 전략 메모", placeholder="예: 학생부종합 3장, 교과 2장, 논술 1장 등", height=100)
+    admission_strategy = st.text_area("지원 전략 메모", value=str(get_loaded_value(loaded_record, "admission_strategy", "")), placeholder="예: 학생부종합 3장, 교과 2장, 논술 1장 등", height=100)
 
     st.subheader("6. 상담 기록")
     col16, col17 = st.columns(2)
     with col16:
-        strengths = st.text_area("학생 강점", placeholder="예: 수학 탐구 역량, 꾸준한 학습 태도", height=100)
-        improvements = st.text_area("보완점", placeholder="예: 전공 관련 활동의 구체성 부족", height=100)
+        strengths = st.text_area("학생 강점", value=str(get_loaded_value(loaded_record, "strengths", "")), placeholder="예: 수학 탐구 역량, 꾸준한 학습 태도", height=100)
+        improvements = st.text_area("보완점", value=str(get_loaded_value(loaded_record, "improvements", "")), placeholder="예: 전공 관련 활동의 구체성 부족", height=100)
     with col17:
-        next_plan = st.text_area("다음 상담 전 준비할 내용", placeholder="예: 지원 희망 대학 5곳 조사, 세특 관련 탐구 주제 정리", height=100)
+        next_plan = st.text_area("다음 상담 전 준비할 내용", value=str(get_loaded_value(loaded_record, "next_plan", "")), placeholder="예: 지원 희망 대학 5곳 조사, 세특 관련 탐구 주제 정리", height=100)
 
-    memo = st.text_area("상담 메모", placeholder="이번 상담에서 나눈 핵심 내용을 입력하세요.", height=140)
+    memo = st.text_area("상담 메모", value=str(get_loaded_value(loaded_record, "memo", "")), placeholder="이번 상담에서 나눈 핵심 내용을 입력하세요.", height=140)
 
     if st.button("상담 기록 저장", use_container_width=True):
         if not student_code.strip() or not desired_major_1.strip() or not memo.strip():
@@ -332,7 +431,7 @@ def main() -> None:
                 "next_plan": next_plan.strip(),
             }
             save_record(record)
-            st.success("상담 기록이 저장되었다.")
+            st.success("상담 기록이 저장되었다. 같은 학생 코드로 저장하면 상담 이력이 누적된다.")
 
     st.subheader("7. 상담 요약 및 다음 상담 체크리스트")
     current_record = {
@@ -412,10 +511,7 @@ def main() -> None:
         with f_col3:
             university_keyword = st.text_input("희망 대학 라인 검색", placeholder="예: 인서울, 부산권, 국립대")
         with f_col4:
-            status_filter = st.multiselect(
-                "준비 유형 필터",
-                ["학생부종합", "학생부교과", "논술", "정시", "면접 중심", "실기/특기", "기타"]
-            )
+            status_filter = st.multiselect("준비 유형 필터", STATUS_OPTIONS)
 
         filtered_analysis = analysis_df.copy()
 
