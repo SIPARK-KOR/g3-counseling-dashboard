@@ -468,68 +468,68 @@ def main() -> None:
 
     left, right = st.columns([2, 1])
 
-st.subheader("2. 성적 정보")
+    st.subheader("2. 성적 정보")
 
-col4, col5, col6 = st.columns(3)
+    col4, col5, col6 = st.columns(3)
 
-with col4:
-    gpa = st.number_input(
-        "내신 평균 등급",
-        min_value=1.0, max_value=9.0,
-        value=get_float_value(loaded_record, "gpa", 2.50),
-        step=0.01, format="%.2f"
-    )
-    korean_gpa = st.number_input(
-        "국어 내신 등급",
-        min_value=1.0, max_value=9.0,
-        value=get_float_value(loaded_record, "korean_gpa", 2.50),
-        step=0.01, format="%.2f"
-    )
+    with col4:
+        gpa = st.number_input(
+            "내신 평균 등급",
+            min_value=1.0, max_value=9.0,
+            value=get_float_value(loaded_record, "gpa", 2.50),
+            step=0.01, format="%.2f"
+        )
+        korean_gpa = st.number_input(
+            "국어 내신 등급",
+            min_value=1.0, max_value=9.0,
+            value=get_float_value(loaded_record, "korean_gpa", 2.50),
+            step=0.01, format="%.2f"
+        )
 
-with col5:
-    math_gpa = st.number_input(
-        "수학 내신 등급",
-        min_value=1.0, max_value=9.0,
-        value=get_float_value(loaded_record, "math_gpa", 2.50),
-        step=0.01, format="%.2f"
-    )
-    english_gpa = st.number_input(
-        "영어 내신 등급",
-        min_value=1.0, max_value=9.0,
-        value=get_float_value(loaded_record, "english_gpa", 2.50),
-        step=0.01, format="%.2f"
-    )
+    with col5:
+        math_gpa = st.number_input(
+            "수학 내신 등급",
+            min_value=1.0, max_value=9.0,
+            value=get_float_value(loaded_record, "math_gpa", 2.50),
+            step=0.01, format="%.2f"
+        )
+        english_gpa = st.number_input(
+            "영어 내신 등급",
+            min_value=1.0, max_value=9.0,
+            value=get_float_value(loaded_record, "english_gpa", 2.50),
+            step=0.01, format="%.2f"
+        )
 
-with col6:
-    social_gpa = st.number_input(
-        "사회 내신 등급",
-        min_value=1.0, max_value=9.0,
-        value=get_float_value(loaded_record, "social_gpa", 2.50),
-        step=0.01, format="%.2f"
-    )
-    science_gpa = st.number_input(
-        "과학 내신 등급",
-        min_value=1.0, max_value=9.0,
-        value=get_float_value(loaded_record, "science_gpa", 2.50),
-        step=0.01, format="%.2f"
-    )
+    with col6:
+        social_gpa = st.number_input(
+            "사회 내신 등급",
+            min_value=1.0, max_value=9.0,
+            value=get_float_value(loaded_record, "social_gpa", 2.50),
+            step=0.01, format="%.2f"
+        )
+        science_gpa = st.number_input(
+            "과학 내신 등급",
+            min_value=1.0, max_value=9.0,
+            value=get_float_value(loaded_record, "science_gpa", 2.50),
+            step=0.01, format="%.2f"
+        )
 
-col7, col8 = st.columns(2)
+    col7, col8 = st.columns(2)
 
-with col7:
-    trend_options = ["상승", "유지", "하락", "판단 보류"]
-    trend_default = get_text_value(loaded_record, "score_trend", "유지")
-    score_trend = st.selectbox(
-        "최근 성적 흐름",
-        trend_options,
-        index=trend_options.index(trend_default) if trend_default in trend_options else 1
-    )
+    with col7:
+        trend_options = ["상승", "유지", "하락", "판단 보류"]
+        trend_default = get_text_value(loaded_record, "score_trend", "유지")
+        score_trend = st.selectbox(
+            "최근 성적 흐름",
+            trend_options,
+            index=trend_options.index(trend_default) if trend_default in trend_options else 1
+        )
 
-with col8:
-    mock_korean = st.selectbox("모의고사 국어", GRADE_OPTIONS, index=0)
-    mock_math = st.selectbox("모의고사 수학", GRADE_OPTIONS, index=0)
-    mock_english = st.selectbox("모의고사 영어", GRADE_OPTIONS, index=0)
-    mock_inquiry = st.selectbox("모의고사 탐구", GRADE_OPTIONS, index=0)
+    with col8:
+        mock_korean = st.selectbox("모의고사 국어", GRADE_OPTIONS, index=0)
+        mock_math = st.selectbox("모의고사 수학", GRADE_OPTIONS, index=0)
+        mock_english = st.selectbox("모의고사 영어", GRADE_OPTIONS, index=0)
+        mock_inquiry = st.selectbox("모의고사 탐구", GRADE_OPTIONS, index=0)
 
     st.subheader("3. 학생부 및 활동 핵심 내용")
     col9, col10 = st.columns(2)
