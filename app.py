@@ -480,16 +480,41 @@ def main() -> None:
         trend_options = ["상승", "유지", "하락", "판단 보류"]
         trend_default = get_text_value(loaded_record, "score_trend", "유지")
         score_trend = st.selectbox("최근 성적 흐름", trend_options, index=trend_options.index(trend_default) if trend_default in trend_options else 1)
-    with col8:
-        m1, m2, m3, m4 = st.columns(4)
-        with m1:
-            mock_korean = st.selectbox("모의고사 국어", GRADE_OPTIONS, index=0)
-        with m2:
-            mock_math = st.selectbox("모의고사 수학", GRADE_OPTIONS, index=0)
-        with m3:
-            mock_english = st.selectbox("모의고사 영어", GRADE_OPTIONS, index=0)
-        with m4:
-            mock_inquiry = st.selectbox("모의고사 탐구", GRADE_OPTIONS, index=0)
+with col8:
+    mock_korean_default = get_text_value(loaded_record, "mock_korean", "1")
+    mock_math_default = get_text_value(loaded_record, "mock_math", "1")
+    mock_english_default = get_text_value(loaded_record, "mock_english", "1")
+    mock_inquiry_default = get_text_value(loaded_record, "mock_inquiry", "1")
+
+    m1, m2, m3, m4 = st.columns(4)
+
+    with m1:
+        mock_korean = st.selectbox(
+            "모의고사 국어",
+            GRADE_OPTIONS,
+            index=GRADE_OPTIONS.index(mock_korean_default) if mock_korean_default in GRADE_OPTIONS else 0
+        )
+
+    with m2:
+        mock_math = st.selectbox(
+            "모의고사 수학",
+            GRADE_OPTIONS,
+            index=GRADE_OPTIONS.index(mock_math_default) if mock_math_default in GRADE_OPTIONS else 0
+        )
+
+    with m3:
+        mock_english = st.selectbox(
+            "모의고사 영어",
+            GRADE_OPTIONS,
+            index=GRADE_OPTIONS.index(mock_english_default) if mock_english_default in GRADE_OPTIONS else 0
+        )
+
+    with m4:
+        mock_inquiry = st.selectbox(
+            "모의고사 탐구",
+            GRADE_OPTIONS,
+            index=GRADE_OPTIONS.index(mock_inquiry_default) if mock_inquiry_default in GRADE_OPTIONS else 0
+        )
 
     st.subheader("2-1. 학기별 성적 입력")
     st.caption("사회·과학은 해당 학기에 이수한 여러 과목의 평균 등급을 입력한다. 예: 물리학 2등급, 지구과학 3등급 → 과학 2.5등급")
