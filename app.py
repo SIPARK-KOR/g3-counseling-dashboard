@@ -745,12 +745,6 @@ def main() -> None:
         m_col1, m_col2, m_col3 = st.columns(3)
         with m_col1:
             st.metric("해당 학생 수", filtered_analysis["student_code"].nunique())
-        with m_col2:
-            avg_gpa = filtered_analysis["gpa"].mean() if "gpa" in filtered_analysis.columns and not filtered_analysis.empty else None
-            st.metric("평균 내신", f"{avg_gpa:.2f}" if avg_gpa is not None else "-")
-        with m_col3:
-            avg_math = filtered_analysis["math_gpa"].mean() if "math_gpa" in filtered_analysis.columns and not filtered_analysis.empty else None
-            st.metric("평균 수학 내신", f"{avg_math:.2f}" if avg_math is not None else "-")
 
         view_columns = [
             "timestamp", "student_code", "student_status", "desired_university_line",
