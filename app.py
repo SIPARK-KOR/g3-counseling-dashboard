@@ -252,106 +252,140 @@ def plot_keyword_chart(keyword_df: pd.DataFrame) -> None:
 
 
 # ------------------------------
-# AI 분석 결과 자동 분류 함수
+# 구조화된 AI 분석 결과 자동 입력 함수
 # ------------------------------
-def find_level(text: str, label: str, default: str = "중") -> str:
-    """텍스트에서 학업역량, 진로역량, 공동체역량 수준을 찾아 반환한다."""
-    candidates = ["최상", "상", "중상", "중", "중하", "하", "매우 높음", "높음", "보통", "낮음"]
-    convert = {
-        "최상": "상",
-        "매우 높음": "상",
-        "높음": "중상",
-        "보통": "중",
-        "낮음": "중하"
-    }
-
+def parse_pipe_format(text: str) -> dict:
+    """항목명|내용 형식의 AI 분석 결과를 딕셔너리로 변환한다."""
+    result = {}
     for line in text.splitlines():
-        if label in line:
-            for value in candidates:
-                if value in line:
-                    return convert.get(value, value)
-    return default
+        line = line.strip()
+        if not line or "|" not in line:
+            continue
 
-
-def extract_section(text: str, start_keywords: list[str], end_keywords: list[str]) -> str:
-    """특정 제목 사이의 내용을 간단히 추출한다."""
-    start_index = -1
-    for keyword in start_keywords:
-        start_index = text.find(keyword)
-        if start_index != -1:
-            start_index += len(keyword)
-            break
-
-    if start_index == -1:
-        return ""
-
-    end_index = len(text)
-    for keyword in end_keywords:
-        temp_index = text.find(keyword, start_index)
-        if temp_index != -1:
-            end_index = min(end_index, temp_index)
-
-    return text[start_index:end_index].strip(" \n:-")
-
-
-def find_major_candidates(text: str) -> list[str]:
-    """분석 텍스트에서 전공 후보를 찾는다."""
-    majors = [
-        "기계공학", "전자공학", "전기공학", "컴퓨터공학", "로봇공학",
-        "AI융합", "산업공학", "소프트웨어", "인공지능", "데이터사이언스"
-    ]
-    result = []
-    for major in majors:
-        if major in text and major not in result:
-            result.append(major)
+        key, value = line.split("|", 1)
+        result[key.strip()] = value.strip()
     return result
 
 
+def clean_grade(value: str, default: float = 2.50) -> float:
+    """등급 문자열에서 숫자만 추출하여 float로 변환한다."""
+    text = str(value)
+    number = ""
+    dot_used = False
+
+    for char in text:
+        if char.isdigit():
+            number += char
+        elif char == "." and not dot_used and number:
+            number += char
+            dot_used = True
+        elif number:
+            break
+
+    if number:
+        return float(number)
+    return default
+
+
+def clean_level(value: str, default: str = "중") -> str:
+    """역량 평가 문장에서 상/중상/중/중하/하 중 하나를 추출한다."""
+    text = str(value)
+    for level in ["중상", "중하", "상", "중", "하"]:
+        if level in text:
+            return level
+    return default
+
+
+def clean_flow(value: str) -> str:
+    """성적 흐름을 상승/유지/하락/판단 보류 중 하나로 변환한다."""
+    text = str(value)
+    if "상승" in text:
+        return "상승"
+    if "하락" in text:
+        return "하락"
+    if "유지" in text:
+        return "유지"
+    return "판단 보류"
+
+
+def get_between(text: str, start_word: str, end_words: list[str]) -> str:
+    """특정 단어 뒤에서 다음 단어 전까지 내용을 추출한다."""
+    if start_word not in text:
+        return ""
+
+    start = text.find(start_word) + len(start_word)
+    end = len(text)
+
+    for end_word in end_words:
+        temp = text.find(end_word, start)
+        if temp != -1 and temp < end:
+            end = temp
+
+    return text[start:end].strip(" -/,")
+
+
+def parse_university_line(value: str) -> tuple[str, str, str, str]:
+    """희망 대학 라인 문장에서 상향/적정/안정 후보를 분리한다."""
+    text = str(value)
+    upper = get_between(text, "상향-", ["적정-", "안정-"])
+    target = get_between(text, "적정-", ["상향-", "안정-"])
+    safe = get_between(text, "안정-", ["상향-", "적정-"])
+    line_summary = text if text else "정보 부족"
+    return line_summary, upper, target, safe
+
+
+def parse_major(value: str) -> tuple[str, str]:
+    """희망 전공 문자열에서 1지망과 2지망을 분리한다."""
+    text = str(value)
+    for sep in [",", "/", "·", "|", " "]:
+        text = text.replace(sep, ",")
+    parts = [part.strip() for part in text.split(",") if part.strip()]
+    major_1 = parts[0] if parts else text
+    major_2 = parts[1] if len(parts) > 1 else ""
+    return major_1, major_2
+
+
 def parse_ai_analysis(text: str) -> dict:
-    """AI 분석 결과 긴 글을 상담 시스템 입력 항목 형태로 변환한다."""
-    major_section = extract_section(text, ["추천 전공", "희망 전공"], ["학생 성향", "성적 구조", "교과 세특", "비교과", "공동체", "최종 역량"])
-    major_candidates = find_major_candidates(major_section or text)
+    """AI가 출력한 '항목명|내용' 형식을 상담 시스템 입력값으로 변환한다."""
+    data = parse_pipe_format(text)
 
-    upper_section = extract_section(text, ["상향"], ["적정", "안정", "핵심 한 줄", "상담 전략"])
-    target_section = extract_section(text, ["적정"], ["안정", "핵심 한 줄", "상담 전략"])
-    safe_section = extract_section(text, ["안정"], ["핵심 한 줄", "상담 전략"])
+    university_line, upper, target, safe = parse_university_line(data.get("희망대학라인", ""))
+    desired_major_1, desired_major_2 = parse_major(data.get("희망전공", ""))
 
-    subject_section = extract_section(text, ["교과 세특 평가", "교과 세특", "수학"], ["비교과", "공동체", "최종 역량", "대학 지원"])
-    club_section = extract_section(text, ["비교과", "동아리"], ["공동체", "최종 역량", "대학 지원", "핵심 한 줄"])
-    career_section = extract_section(text, ["진로 일관성", "학생 성향", "상담 전략"], ["공동체", "최종 역량", "대학 지원", "면접 대비"])
-    strategy_section = extract_section(text, ["상담 전략"], ["교사용", "원하면", "부산대 합격"])
-    one_line = extract_section(text, ["핵심 한 줄 평가", "한 줄 평가"], ["상담 전략", "교사용", "원하면"])
-
-    academic_level = find_level(text, "학업역량", "중")
-    career_level = "상" if any(word in text for word in ["진로 일관성", "전공적합성", "매우 높음", "완벽한 흐름"]) else "중"
-    community_level = find_level(text, "공동체역량", "중")
-
-    desired_major_1 = major_candidates[0] if major_candidates else ""
-    desired_major_2 = major_candidates[1] if len(major_candidates) > 1 else ""
-
-    return {
+    parsed = {
         "student_status": ["학생부종합"],
-        "desired_university_line": "부산권 국립대, 지역 거점 국립대, 지역 사립대 공대",
+        "desired_university_line": university_line,
         "desired_major_1": desired_major_1,
         "desired_major_2": desired_major_2,
         "priority_type": "대학·전공 균형",
         "career_decision": "어느 정도 확정",
-        "subject_record": subject_section[:800],
-        "club_activity": club_section[:800],
-        "career_activity": career_section[:800],
-        "reading_activity": "학생부 원문에서 독서 및 기타 활동을 추가 확인할 필요가 있음.",
-        "academic_level": academic_level,
-        "career_level": career_level,
-        "community_level": community_level,
-        "upper_universities": upper_section[:500],
-        "target_universities": target_section[:500],
-        "safe_universities": safe_section[:500],
-        "admission_strategy": strategy_section[:800],
-        "strengths": (one_line or "전공 관련 탐구 흐름과 공학적 문제 해결 경험이 강점으로 보임.")[:500],
-        "improvements": "전공 선택의 우선순위를 명확히 하고, 면접에서 설명할 핵심 탐구 경험을 정리할 필요가 있음.",
-        "memo": text[:1200],
-        "next_plan": "기계·전자·컴퓨터 계열 중 주 전공 방향을 정하고, 핵심 탐구 2~3개를 면접 답변 형태로 정리하기."
+        "gpa": clean_grade(data.get("내신평균", "")),
+        "korean_gpa": clean_grade(data.get("국어내신", "")),
+        "math_gpa": clean_grade(data.get("수학내신", "")),
+        "english_gpa": clean_grade(data.get("영어내신", "")),
+        "inquiry_gpa": clean_grade(data.get("탐구내신", "")),
+        "mock_korean": "1",
+        "mock_math": "1",
+        "mock_english": "1",
+        "mock_inquiry": "1",
+        "score_trend": clean_flow(data.get("성적흐름", "")),
+        "subject_record": data.get("교과세특", "정보 부족"),
+        "club_activity": data.get("동아리", "정보 부족"),
+        "career_activity": data.get("진로활동", "정보 부족"),
+        "reading_activity": data.get("독서기타", "정보 부족"),
+        "academic_level": clean_level(data.get("학업역량", "")),
+        "career_level": clean_level(data.get("진로역량", "")),
+        "community_level": clean_level(data.get("공동체역량", "")),
+        "upper_universities": upper,
+        "target_universities": target,
+        "safe_universities": safe,
+        "admission_strategy": data.get("희망대학라인", "") or "상향·적정·안정 지원군을 상담에서 추가 점검할 필요가 있음.",
+        "strengths": data.get("강점", "정보 부족"),
+        "improvements": data.get("보완점", "정보 부족"),
+        "memo": data.get("상담메모", text[:1200]),
+        "next_plan": data.get("다음준비", "정보 부족")
     }
+    return parsed
 
 
 # ------------------------------
