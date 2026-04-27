@@ -526,10 +526,19 @@ def main() -> None:
         )
 
     with col8:
-        mock_korean = st.selectbox("모의고사 국어", GRADE_OPTIONS, index=0)
-        mock_math = st.selectbox("모의고사 수학", GRADE_OPTIONS, index=0)
-        mock_english = st.selectbox("모의고사 영어", GRADE_OPTIONS, index=0)
-        mock_inquiry = st.selectbox("모의고사 탐구", GRADE_OPTIONS, index=0)
+        m1, m2, m3, m4 = st.columns(4)
+
+        with m1:
+            mock_korean = st.selectbox("모의고사 국어", GRADE_OPTIONS, index=0)
+
+        with m2:
+            mock_math = st.selectbox("모의고사 수학", GRADE_OPTIONS, index=0)
+
+        with m3:
+            mock_english = st.selectbox("모의고사 영어", GRADE_OPTIONS, index=0)
+
+        with m4:
+            mock_inquiry = st.selectbox("모의고사 탐구", GRADE_OPTIONS, index=0)
 
     st.subheader("3. 학생부 및 활동 핵심 내용")
     col9, col10 = st.columns(2)
