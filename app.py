@@ -466,47 +466,58 @@ def main() -> None:
         desired_major_1 = st.text_input("희망 전공 1지망", value=get_text_value(loaded_record, "desired_major_1", ""), placeholder="예: 컴퓨터공학")
         desired_major_2 = st.text_input("희망 전공 2지망", value=get_text_value(loaded_record, "desired_major_2", ""), placeholder="예: 산업공학")
 
-    st.subheader("2. 성적 정보")
+    left, right = st.columns([2, 1])
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        gpa = st.number_input("내신 평균 등급", min_value=1.0, max_value=9.0, value=get_float_value(loaded_record, "gpa", 2.50), step=0.01, format="%.2f")
-    with col2:
-        korean_gpa = st.number_input("국어 내신 등급", min_value=1.0, max_value=9.0, value=get_float_value(loaded_record, "korean_gpa", 2.50), step=0.01, format="%.2f")
-    with col3:
-        math_gpa = st.number_input("수학 내신 등급", min_value=1.0, max_value=9.0, value=get_float_value(loaded_record, "math_gpa", 2.50), step=0.01, format="%.2f")
+    with left:
+        st.subheader("2. 성적 정보")
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        english_gpa = st.number_input("영어 내신 등급", min_value=1.0, max_value=9.0, value=get_float_value(loaded_record, "english_gpa", 2.50), step=0.01, format="%.2f")
-    with col2:
-        social_gpa = st.number_input("사회 내신 등급", min_value=1.0, max_value=9.0, value=get_float_value(loaded_record, "social_gpa", 2.50), step=0.01, format="%.2f")
-    with col3:
-        science_gpa = st.number_input("과학 내신 등급", min_value=1.0, max_value=9.0, value=get_float_value(loaded_record, "science_gpa", 2.50), step=0.01, format="%.2f")
+        col1, col2 = st.columns(2)
+        with col1:
+            gpa = st.number_input("내신 평균 등급", min_value=1.0, max_value=9.0, value=get_float_value(loaded_record, "gpa", 2.50), step=0.01, format="%.2f")
+            korean_gpa = st.number_input("국어 내신 등급", min_value=1.0, max_value=9.0, value=get_float_value(loaded_record, "korean_gpa", 2.50), step=0.01, format="%.2f")
+            math_gpa = st.number_input("수학 내신 등급", min_value=1.0, max_value=9.0, value=get_float_value(loaded_record, "math_gpa", 2.50), step=0.01, format="%.2f")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        trend_options = ["상승", "유지", "하락", "판단 보류"]
-        trend_default = get_text_value(loaded_record, "score_trend", "유지")
-        score_trend = st.selectbox("최근 성적 흐름", trend_options, index=trend_options.index(trend_default) if trend_default in trend_options else 1)
-    with col2:
-        mock_korean = st.selectbox("모의고사 국어", GRADE_OPTIONS, index=0)
-        mock_math = st.selectbox("모의고사 수학", GRADE_OPTIONS, index=0)
-        mock_english = st.selectbox("모의고사 영어", GRADE_OPTIONS, index=0)
-        mock_inquiry = st.selectbox("모의고사 탐구", GRADE_OPTIONS, index=0)
+        with col2:
+            english_gpa = st.number_input("영어 내신 등급", min_value=1.0, max_value=9.0, value=get_float_value(loaded_record, "english_gpa", 2.50), step=0.01, format="%.2f")
+            social_gpa = st.number_input("사회 내신 등급", min_value=1.0, max_value=9.0, value=get_float_value(loaded_record, "social_gpa", 2.50), step=0.01, format="%.2f")
+            science_gpa = st.number_input("과학 내신 등급", min_value=1.0, max_value=9.0, value=get_float_value(loaded_record, "science_gpa", 2.50), step=0.01, format="%.2f")
 
-    st.subheader("2-1. 학기별 성적 입력")
-    st.caption("사회·과학은 해당 학기에 이수한 여러 과목의 평균 등급을 입력한다. 예: 물리학 2등급, 지구과학 3등급 → 과학 2.5등급")
+        col1, col2 = st.columns(2)
+        with col1:
+            trend_options = ["상승", "유지", "하락", "판단 보류"]
+            trend_default = get_text_value(loaded_record, "score_trend", "유지")
+            score_trend = st.selectbox("최근 성적 흐름", trend_options, index=trend_options.index(trend_default) if trend_default in trend_options else 1)
 
-    semester_values = {}
-    with st.expander("학기별 성적 입력 열기"):
-        for subject in SUBJECTS:
-            st.markdown(f"**{subject}**")
-            cols = st.columns(6)
-            for idx, semester in enumerate(SEMESTERS):
-                key = f"{subject}_{semester}"
-                with cols[idx]:
-                    semester_values[key] = st.text_input(semester, value=get_text_value(loaded_record, key, ""), key=f"input_{key}", placeholder="예: 2.5")
+        with col2:
+            mock_korean = st.selectbox("모의고사 국어", GRADE_OPTIONS, index=0)
+            mock_math = st.selectbox("모의고사 수학", GRADE_OPTIONS, index=0)
+            mock_english = st.selectbox("모의고사 영어", GRADE_OPTIONS, index=0)
+            mock_inquiry = st.selectbox("모의고사 탐구", GRADE_OPTIONS, index=0)
+
+    with right:
+        st.subheader("2-1. 학기별 성적 입력")
+        st.caption("사회·과학은 해당 학기에 이수한 여러 과목의 평균 등급을 입력한다.")
+
+        semester_values = {}
+
+        with st.expander("학기별 성적 입력 열기"):
+            for subject in SUBJECTS:
+                st.markdown(f"**{subject}**")
+                cols = st.columns(2)
+
+                for idx, semester in enumerate(SEMESTERS):
+                    key = f"{subject}_{semester}"
+                    widget_key = f"input_{key}"
+
+                    if widget_key not in st.session_state:
+                        st.session_state[widget_key] = get_text_value(loaded_record, key, "")
+
+                    with cols[idx % 2]:
+                        semester_values[key] = st.text_input(
+                            semester,
+                            key=widget_key,
+                            placeholder="예: 2.5"
+                        )
 
     st.subheader("3. 학생부 및 활동 핵심 내용")
     col9, col10 = st.columns(2)
