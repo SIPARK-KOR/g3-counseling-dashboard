@@ -248,8 +248,7 @@ def generate_summary(record: dict) -> str:
         f"영어 {record['english_gpa']}, 사회 {record['social_gpa']}, 과학 {record['science_gpa']} 수준이다."
     )
     lines.append(
-        f"모의고사 등급은 국어 {record['mock_korean']}, 수학 {record['mock_math']}, "
-        f"영어 {record['mock_english']}, 탐구 {record['mock_inquiry']} 수준이며, 최근 성적 흐름은 {record['score_trend']}이다."
+        f"최근 성적 흐름은 {record['score_trend']}이다."
     )
     lines.append(
         f"역량 평가는 학업역량 {record['academic_level']}, 진로역량 {record['career_level']}, "
