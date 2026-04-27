@@ -596,14 +596,14 @@ def main() -> None:
         st.markdown(f"- 공동체역량: {color_level(community_level)}")
         st.markdown(f"- 최근 성적 흐름: **{score_trend}**")
     with dash_col2:
-    current_chart_record = {}
+        current_chart_record = {}
 
-    if loaded_record:
-        current_chart_record.update(loaded_record)
+        if loaded_record:
+            current_chart_record.update(loaded_record)
 
-    current_chart_record.update(semester_values)
+        current_chart_record.update(semester_values)
 
-    plot_semester_grade_charts(current_chart_record)
+        plot_semester_grade_charts(current_chart_record)
 
     st.subheader("8. 상담 요약 및 다음 상담 체크리스트")
     current_record = {
