@@ -554,8 +554,17 @@ def main() -> None:
         if st.button("최신 상담 기록 불러오기", use_container_width=True):
             loaded = get_latest_record(load_code)
             if loaded is None:
-                st.warning("해당 학생 코드의 상담 기록이 없습니다.")
-                st.session_state["loaded_record"] = None
+                mock_record = get_mock_record(load_code)
+
+                if mock_record:
+                    st.session_state["loaded_record"] = {
+                        "student_code": load_code.strip()
+                    }
+                    st.success("상담 기록은 없지만, 모의고사 기록을 불러왔습니다.")
+                    st.rerun()
+                else:
+                    st.warning("해당 학생 코드의 상담 기록과 모의고사 기록이 없습니다.")
+                    st.session_state["loaded_record"] = None
             else:
                 st.session_state["loaded_record"] = loaded
                 st.success("최신 상담 기록을 불러왔습니다. 아래 입력칸에서 필요한 부분만 수정하세요.")
@@ -649,19 +658,30 @@ def main() -> None:
     with col8:
         mock_record = get_mock_record(student_code)
 
+        def get_latest_mock_score(mock_record, subject):
+            if not mock_record:
+                return "-"
+
+            for month in reversed(MOCK_MONTHS):
+                value = mock_record.get(f"{month}_{subject}", "")
+                if pd.notna(value) and str(value).strip() != "" and str(value).lower() != "nan":
+                    return str(value)
+
+            return "-"
+
         m1, m2, m3, m4 = st.columns(4)
 
         with m1:
-            st.metric("최근 국어", mock_record.get("10월_국어", "-") if mock_record else "-")
+            st.metric("최근 국어", get_latest_mock_score(mock_record, "국어"))
 
         with m2:
-            st.metric("최근 수학", mock_record.get("10월_수학", "-") if mock_record else "-")
+            st.metric("최근 수학", get_latest_mock_score(mock_record, "수학"))
 
         with m3:
-            st.metric("최근 영어", mock_record.get("10월_영어", "-") if mock_record else "-")
+            st.metric("최근 영어", get_latest_mock_score(mock_record, "영어"))
 
         with m4:
-            st.metric("최근 탐구", mock_record.get("10월_탐구", "-") if mock_record else "-")
+            st.metric("최근 탐구", get_latest_mock_score(mock_record, "탐구"))
 
     st.subheader("2-1. 학기별 성적 입력")
     st.caption("사회·과학은 해당 학기에 이수한 여러 과목의 평균 등급을 입력한다. 예: 물리학 2등급, 지구과학 3등급 → 과학 2.5등급")
