@@ -672,16 +672,16 @@ def main() -> None:
         m1, m2, m3, m4 = st.columns(4)
 
         with m1:
-            st.metric("최근 국어", get_latest_mock_score(mock_record, "국어"))
+            st.metric("모의고사 국어", get_latest_mock_score(mock_record, "국어"))
 
         with m2:
-            st.metric("최근 수학", get_latest_mock_score(mock_record, "수학"))
+            st.metric("모의고사 수학", get_latest_mock_score(mock_record, "수학"))
 
         with m3:
-            st.metric("최근 영어", get_latest_mock_score(mock_record, "영어"))
+            st.metric("모의고사 영어", get_latest_mock_score(mock_record, "영어"))
 
         with m4:
-            st.metric("최근 탐구", get_latest_mock_score(mock_record, "탐구"))
+            st.metric("모의고사 탐구", get_latest_mock_score(mock_record, "탐구"))
 
     st.subheader("2-1. 학기별 성적 입력")
     st.caption("사회·과학은 해당 학기에 이수한 여러 과목의 평균 등급을 입력한다. 예: 물리학 2등급, 지구과학 3등급 → 과학 2.5등급")
