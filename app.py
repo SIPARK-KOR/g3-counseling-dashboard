@@ -227,13 +227,17 @@ def color_level(level: str) -> str:
     return color_map.get(level, level)
 
 
-def plot_grade_chart(korean_gpa: float, math_gpa: float, english_gpa: float, inquiry_gpa: float) -> None:
-    """과목별 내신 등급을 막대그래프로 표시한다."""
-    grade_df = pd.DataFrame({
-        "과목": ["국어", "수학", "영어", "탐구"],
-        "등급": [korean_gpa, math_gpa, english_gpa, inquiry_gpa]
-    })
-    st.bar_chart(grade_df.set_index("과목"))
+def plot_grade_chart(korean_gpa, math_gpa, english_gpa, inquiry_gpa):
+    labels = ["국어", "수학", "영어", "탐구"]
+    values = [korean_gpa, math_gpa, english_gpa, inquiry_gpa]
+
+    fig, ax = plt.subplots()
+
+    ax.bar(labels, values)
+    ax.set_ylim(0, 10)        # ⭐ 마이너스 제거
+    ax.invert_yaxis()         # ⭐ 1등급이 위로 (추천)
+
+    st.pyplot(fig)
 
 
 def plot_keyword_chart(keyword_df: pd.DataFrame) -> None:
