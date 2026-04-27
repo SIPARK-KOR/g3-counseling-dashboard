@@ -744,7 +744,7 @@ def main() -> None:
         st.markdown("**필터 결과 요약**")
         m_col1, m_col2, m_col3 = st.columns(3)
         with m_col1:
-            st.metric("해당 학생 수", len(filtered_analysis))
+            st.metric("해당 학생 수", filtered_analysis["student_code"].nunique())
         with m_col2:
             avg_gpa = filtered_analysis["gpa"].mean() if "gpa" in filtered_analysis.columns and not filtered_analysis.empty else None
             st.metric("평균 내신", f"{avg_gpa:.2f}" if avg_gpa is not None else "-")
