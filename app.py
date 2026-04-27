@@ -761,16 +761,20 @@ def main() -> None:
         existing_view_columns = [col for col in view_columns if col in filtered_analysis.columns]
         st.dataframe(filtered_analysis[existing_view_columns], use_container_width=True)
 
+        latest_by_student = filtered_analysis.sort_values("timestamp").drop_duplicates("student_code", keep="last")
+
         st.markdown("**그룹별 간단 비교**")
         group_col1, group_col2 = st.columns(2)
+
         with group_col1:
-            if "desired_major_1" in filtered_analysis.columns and not filtered_analysis.empty:
-                major_counts = filtered_analysis["desired_major_1"].value_counts().reset_index()
+            if "desired_major_1" in latest_by_student.columns and not latest_by_student.empty:
+                major_counts = latest_by_student["desired_major_1"].value_counts().reset_index()
                 major_counts.columns = ["희망 전공 1지망", "학생 수"]
                 st.dataframe(major_counts, use_container_width=True)
+
         with group_col2:
-            if "desired_university_line" in filtered_analysis.columns and not filtered_analysis.empty:
-                line_counts = filtered_analysis["desired_university_line"].value_counts().reset_index()
+            if "desired_university_line" in latest_by_student.columns and not latest_by_student.empty:
+                line_counts = latest_by_student["desired_university_line"].value_counts().reset_index()
                 line_counts.columns = ["희망 대학 라인", "학생 수"]
                 st.dataframe(line_counts, use_container_width=True)
 
