@@ -9,11 +9,16 @@ import plotly.express as px
 
 DATA_FILE = Path("counseling_records.csv")
 
+MOCK_FILE = Path("mock_exam_records.csv")
+
 STATUS_OPTIONS = ["학생부종합", "학생부교과", "논술", "정시", "면접 중심", "실기/특기", "기타"]
 LEVEL_OPTIONS = ["상", "중상", "중", "중하", "하"]
 GRADE_OPTIONS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
 SEMESTERS = ["1-1", "1-2", "2-1", "2-2", "3-1", "3-2"]
 SUBJECTS = ["국어", "수학", "영어", "사회", "과학", "교과평균"]
+MOCK_MONTHS = ["3월", "5월", "6월", "7월", "9월", "10월"]
+MOCK_SUBJECTS = ["국어", "수학", "영어", "탐구"]
+MOCK_COLUMNS = ["student_code"] + [f"{month}_{subject}" for month in MOCK_MONTHS for subject in MOCK_SUBJECTS]
 
 BASE_COLUMNS = [
     "timestamp", "student_code", "student_status", "desired_university_line",
@@ -110,13 +115,118 @@ def get_text_value(record: dict | None, key: str, default: str = "") -> str:
 
 def text_to_float_or_none(value: str):
     text = str(value).strip()
-    if text == "":
+    if text == "" or text == "정보 부족" or text.lower() == "nan":
         return None
     try:
         return float(text)
     except ValueError:
         return None
 
+# ------------------------------
+# 모의고사 데이터 처리 함수
+# ------------------------------
+def load_mock_data() -> pd.DataFrame:
+    if MOCK_FILE.exists():
+        df = pd.read_csv(MOCK_FILE)
+        for col in MOCK_COLUMNS:
+            if col not in df.columns:
+                df[col] = ""
+        return df[MOCK_COLUMNS]
+    return pd.DataFrame(columns=MOCK_COLUMNS)
+
+
+def save_mock_data(df: pd.DataFrame) -> None:
+    for col in MOCK_COLUMNS:
+        if col not in df.columns:
+            df[col] = ""
+    df[MOCK_COLUMNS].to_csv(MOCK_FILE, index=False, encoding="utf-8-sig")
+
+
+def normalize_student_code(value) -> str:
+    if pd.isna(value):
+        return ""
+    text = str(value).strip()
+    if text.endswith(".0"):
+        text = text[:-2]
+    return text
+
+
+def find_column(df: pd.DataFrame, candidates: list[str]) -> str | None:
+    normalized = {str(col).replace(" ", "").lower(): col for col in df.columns}
+    for candidate in candidates:
+        key = candidate.replace(" ", "").lower()
+        if key in normalized:
+            return normalized[key]
+    return None
+
+
+def import_monthly_mock_file(uploaded_file, month: str) -> tuple[bool, str]:
+    try:
+        if uploaded_file.name.endswith(".csv"):
+            upload_df = pd.read_csv(uploaded_file)
+        else:
+            upload_df = pd.read_excel(uploaded_file)
+    except Exception as e:
+        return False, f"파일을 읽는 중 오류가 발생했습니다: {e}"
+
+    code_col = find_column(upload_df, ["학생코드", "학번", "번호", "student_code", "studentcode"])
+    korean_col = find_column(upload_df, ["국어", "국어등급", "국어 등급"])
+    math_col = find_column(upload_df, ["수학", "수학등급", "수학 등급"])
+    english_col = find_column(upload_df, ["영어", "영어등급", "영어 등급"])
+    inquiry_col = find_column(upload_df, ["탐구", "탐구등급", "탐구 등급"])
+
+    if code_col is None:
+        return False, "학생코드(또는 학번/번호) 컬럼을 찾지 못했습니다."
+
+    subject_cols = {
+        "국어": korean_col,
+        "수학": math_col,
+        "영어": english_col,
+        "탐구": inquiry_col,
+    }
+
+    if all(col is None for col in subject_cols.values()):
+        return False, "국어/수학/영어/탐구 등급 컬럼을 찾지 못했습니다."
+
+    mock_df = load_mock_data()
+    mock_df["student_code"] = mock_df["student_code"].apply(normalize_student_code)
+
+    count = 0
+
+    for _, row in upload_df.iterrows():
+        student_code = normalize_student_code(row.get(code_col, ""))
+        if not student_code:
+            continue
+
+        if student_code not in mock_df["student_code"].astype(str).values:
+            new_row = {col: "" for col in MOCK_COLUMNS}
+            new_row["student_code"] = student_code
+            mock_df = pd.concat([mock_df, pd.DataFrame([new_row])], ignore_index=True)
+
+        row_index = mock_df.index[mock_df["student_code"].astype(str) == student_code][0]
+
+        for subject, col_name in subject_cols.items():
+            if col_name is not None:
+                target_col = f"{month}_{subject}"
+                mock_df.loc[row_index, target_col] = row.get(col_name, "")
+
+        count += 1
+
+    save_mock_data(mock_df)
+    return True, f"{month} 모의고사 성적 {count}명 데이터를 반영했습니다."
+
+
+def get_mock_record(student_code: str) -> dict:
+    df = load_mock_data()
+    if df.empty or not student_code.strip():
+        return {}
+
+    df["student_code"] = df["student_code"].apply(normalize_student_code)
+    matched = df[df["student_code"].astype(str) == student_code.strip()]
+    if matched.empty:
+        return {}
+
+    return matched.iloc[0].to_dict()
 
 # ------------------------------
 # 요약 및 체크리스트 함수
@@ -233,6 +343,42 @@ def plot_semester_grade_charts(record: dict) -> None:
             fig.update_layout(height=280, margin=dict(l=20, r=20, t=45, b=20))
             st.plotly_chart(fig, use_container_width=True)
 
+def plot_mock_exam_charts(student_code: str) -> None:
+    st.markdown("**모의고사 성적 변화 시각화**")
+
+    mock_record = get_mock_record(student_code)
+
+    if not mock_record:
+        st.info("해당 학생의 모의고사 데이터가 아직 없습니다.")
+        return
+
+    chart_data = []
+    for subject in MOCK_SUBJECTS:
+        for month in MOCK_MONTHS:
+            key = f"{month}_{subject}"
+            value = text_to_float_or_none(mock_record.get(key, ""))
+            if value is not None:
+                chart_data.append({"과목": subject, "월": month, "등급": value})
+
+    if not chart_data:
+        st.info("모의고사 성적 데이터가 입력되면 그래프가 표시된다.")
+        return
+
+    df = pd.DataFrame(chart_data)
+    col1, col2 = st.columns(2)
+    columns = [col1, col2]
+
+    for idx, subject in enumerate(MOCK_SUBJECTS):
+        subject_df = df[df["과목"] == subject]
+        if subject_df.empty:
+            continue
+
+        with columns[idx % 2]:
+            fig = px.line(subject_df, x="월", y="등급", markers=True, title=subject)
+            fig.update_yaxes(range=[9, 1], title="등급")
+            fig.update_xaxes(categoryorder="array", categoryarray=MOCK_MONTHS)
+            fig.update_layout(height=280, margin=dict(l=20, r=20, t=45, b=20))
+            st.plotly_chart(fig, use_container_width=True)
 
 # ------------------------------
 # 구조화된 AI 분석 결과 자동 입력 함수
@@ -397,6 +543,7 @@ def main() -> None:
         st.write("- 기존 학생 상담 기록을 불러온 뒤 일부만 수정하여 새 상담 기록으로 저장할 수 있다.")
         st.write("- 학생 개인정보 보호를 위해 학생 이름 대신 학생 코드를 사용한다.")
         st.write("- AI 분석 결과를 구조화된 형식으로 붙여넣으면 입력칸에 자동 반영된다.")
+        st.write("- 모의고사 성적표는 월별로 업로드하여 학생코드 기준으로 누적 관리할 수 있다.")
 
     st.subheader("0. 기존 상담 기록 불러오기")
     load_col1, load_col2 = st.columns([2, 1])
@@ -445,7 +592,27 @@ def main() -> None:
 
             st.success("AI 분석 결과를 입력칸에 반영했습니다. 아래 항목을 확인하고 필요한 부분을 수정하세요.")
             st.rerun()
+            
+    st.subheader("0-2. 모의고사 성적표 월별 업로드")
+    upload_col1, upload_col2 = st.columns([1, 2])
 
+    with upload_col1:
+        mock_month = st.selectbox("업로드할 모의고사 월", MOCK_MONTHS)
+
+    with upload_col2:
+        uploaded_mock = st.file_uploader("모의고사 성적표 업로드(csv/xlsx)", type=["csv", "xlsx"])
+
+    if st.button("모의고사 성적 반영", use_container_width=True):
+        if uploaded_mock is None:
+            st.warning("업로드할 파일을 선택하세요.")
+        else:
+            ok, message = import_monthly_mock_file(uploaded_mock, mock_month)
+            if ok:
+                st.success(message)
+            else:
+                st.error(message)
+
+    st.caption("업로드 파일에는 학생코드(또는 학번/번호), 국어, 수학, 영어, 탐구 컬럼이 있으면 된다.")
     st.subheader("1. 학생 기본 정보")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -481,40 +648,21 @@ def main() -> None:
         trend_default = get_text_value(loaded_record, "score_trend", "유지")
         score_trend = st.selectbox("최근 성적 흐름", trend_options, index=trend_options.index(trend_default) if trend_default in trend_options else 1)
     with col8:
-        mock_korean_default = get_text_value(loaded_record, "mock_korean", "1")
-        mock_math_default = get_text_value(loaded_record, "mock_math", "1")
-        mock_english_default = get_text_value(loaded_record, "mock_english", "1")
-        mock_inquiry_default = get_text_value(loaded_record, "mock_inquiry", "1")
+        mock_record = get_mock_record(student_code)
 
         m1, m2, m3, m4 = st.columns(4)
 
         with m1:
-            mock_korean = st.selectbox(
-                "모의고사 국어",
-                GRADE_OPTIONS,
-                index=GRADE_OPTIONS.index(mock_korean_default) if mock_korean_default in GRADE_OPTIONS else 0
-            )
+            st.metric("최근 국어", mock_record.get("10월_국어", "-") if mock_record else "-")
 
         with m2:
-            mock_math = st.selectbox(
-                "모의고사 수학",
-                GRADE_OPTIONS,
-                index=GRADE_OPTIONS.index(mock_math_default) if mock_math_default in GRADE_OPTIONS else 0
-            )
+            st.metric("최근 수학", mock_record.get("10월_수학", "-") if mock_record else "-")
 
         with m3:
-            mock_english = st.selectbox(
-                "모의고사 영어",
-                GRADE_OPTIONS,
-                index=GRADE_OPTIONS.index(mock_english_default) if mock_english_default in GRADE_OPTIONS else 0
-            )
+            st.metric("최근 영어", mock_record.get("10월_영어", "-") if mock_record else "-")
 
         with m4:
-            mock_inquiry = st.selectbox(
-                "모의고사 탐구",
-                GRADE_OPTIONS,
-                index=GRADE_OPTIONS.index(mock_inquiry_default) if mock_inquiry_default in GRADE_OPTIONS else 0
-            )
+            st.metric("최근 탐구", mock_record.get("10월_탐구", "-") if mock_record else "-")
 
     st.subheader("2-1. 학기별 성적 입력")
     st.caption("사회·과학은 해당 학기에 이수한 여러 과목의 평균 등급을 입력한다. 예: 물리학 2등급, 지구과학 3등급 → 과학 2.5등급")
@@ -599,10 +747,6 @@ def main() -> None:
                 "english_gpa": english_gpa,
                 "social_gpa": social_gpa,
                 "science_gpa": science_gpa,
-                "mock_korean": mock_korean,
-                "mock_math": mock_math,
-                "mock_english": mock_english,
-                "mock_inquiry": mock_inquiry,
                 "score_trend": score_trend,
                 "subject_record": subject_record.strip(),
                 "club_activity": club_activity.strip(),
@@ -648,6 +792,7 @@ def main() -> None:
             current_chart_record.update(loaded_record)
         current_chart_record.update(semester_values)
         plot_semester_grade_charts(current_chart_record)
+        plot_mock_exam_charts(student_code)
 
     st.subheader("8. 상담 요약 및 다음 상담 체크리스트")
     current_record = {
@@ -663,10 +808,6 @@ def main() -> None:
         "english_gpa": english_gpa,
         "social_gpa": social_gpa,
         "science_gpa": science_gpa,
-        "mock_korean": mock_korean,
-        "mock_math": mock_math,
-        "mock_english": mock_english,
-        "mock_inquiry": mock_inquiry,
         "score_trend": score_trend,
         "subject_record": subject_record.strip(),
         "club_activity": club_activity.strip(),
