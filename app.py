@@ -346,45 +346,47 @@ def parse_major(value: str) -> tuple[str, str]:
 
 
 def parse_ai_analysis(text: str) -> dict:
-    """AI가 출력한 '항목명|내용' 형식을 상담 시스템 입력값으로 변환한다."""
     data = parse_pipe_format(text)
 
-    university_line, upper, target, safe = parse_university_line(data.get("희망대학라인", ""))
-    desired_major_1, desired_major_2 = parse_major(data.get("희망전공", ""))
+    upper = data.get("상향대학", "")
+    target = data.get("적정대학", "")
+    safe = data.get("안정대학", "")
+
+    university_line = f"상향-{upper} / 적정-{target} / 안정-{safe}"
 
     parsed = {
-        "student_status": ["학생부종합"],
+        "upper_universities": upper,
+        "target_universities": target,
+        "safe_universities": safe,
+        "admission_strategy": university_line,
         "desired_university_line": university_line,
-        "desired_major_1": desired_major_1,
-        "desired_major_2": desired_major_2,
-        "priority_type": "대학·전공 균형",
-        "career_decision": "어느 정도 확정",
+
         "gpa": clean_grade(data.get("내신평균", "")),
         "korean_gpa": clean_grade(data.get("국어내신", "")),
         "math_gpa": clean_grade(data.get("수학내신", "")),
         "english_gpa": clean_grade(data.get("영어내신", "")),
         "inquiry_gpa": clean_grade(data.get("탐구내신", "")),
-        "mock_korean": "1",
-        "mock_math": "1",
-        "mock_english": "1",
-        "mock_inquiry": "1",
+
         "score_trend": clean_flow(data.get("성적흐름", "")),
+
+        "desired_major_1": parse_major(data.get("희망전공", ""))[0],
+        "desired_major_2": parse_major(data.get("희망전공", ""))[1],
+
         "subject_record": data.get("교과세특", "정보 부족"),
         "club_activity": data.get("동아리", "정보 부족"),
         "career_activity": data.get("진로활동", "정보 부족"),
         "reading_activity": data.get("독서기타", "정보 부족"),
+
         "academic_level": clean_level(data.get("학업역량", "")),
         "career_level": clean_level(data.get("진로역량", "")),
         "community_level": clean_level(data.get("공동체역량", "")),
-        "upper_universities": upper,
-        "target_universities": target,
-        "safe_universities": safe,
-        "admission_strategy": data.get("희망대학라인", "") or "상향·적정·안정 지원군을 상담에서 추가 점검할 필요가 있음.",
+
         "strengths": data.get("강점", "정보 부족"),
         "improvements": data.get("보완점", "정보 부족"),
-        "memo": data.get("상담메모", text[:1200]),
-        "next_plan": data.get("다음준비", "정보 부족")
+        "next_plan": data.get("다음준비", "정보 부족"),
+        "memo": data.get("상담메모", "")
     }
+
     return parsed
 
 
