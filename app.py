@@ -434,7 +434,18 @@ def main() -> None:
             st.warning("AI 분석 결과 텍스트를 먼저 붙여넣어 주세요.")
         else:
             parsed_record = parse_ai_analysis(ai_text)
+
+            # 1️⃣ 전체 데이터 저장
             st.session_state["loaded_record"] = parsed_record
+
+            # 2️⃣ 학기별 입력칸 값까지 강제로 넣기
+            for subject in SUBJECTS:
+                for semester in SEMESTERS:
+                    key = f"{subject}_{semester}"
+                    widget_key = f"input_{key}"
+
+                    st.session_state[widget_key] = parsed_record.get(key, "")
+
             st.success("AI 분석 결과를 입력칸에 반영했습니다. 아래 항목을 확인하고 필요한 부분을 수정하세요.")
             st.rerun()
 
