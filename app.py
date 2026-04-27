@@ -252,6 +252,110 @@ def plot_keyword_chart(keyword_df: pd.DataFrame) -> None:
 
 
 # ------------------------------
+# AI 분석 결과 자동 분류 함수
+# ------------------------------
+def find_level(text: str, label: str, default: str = "중") -> str:
+    """텍스트에서 학업역량, 진로역량, 공동체역량 수준을 찾아 반환한다."""
+    candidates = ["최상", "상", "중상", "중", "중하", "하", "매우 높음", "높음", "보통", "낮음"]
+    convert = {
+        "최상": "상",
+        "매우 높음": "상",
+        "높음": "중상",
+        "보통": "중",
+        "낮음": "중하"
+    }
+
+    for line in text.splitlines():
+        if label in line:
+            for value in candidates:
+                if value in line:
+                    return convert.get(value, value)
+    return default
+
+
+def extract_section(text: str, start_keywords: list[str], end_keywords: list[str]) -> str:
+    """특정 제목 사이의 내용을 간단히 추출한다."""
+    start_index = -1
+    for keyword in start_keywords:
+        start_index = text.find(keyword)
+        if start_index != -1:
+            start_index += len(keyword)
+            break
+
+    if start_index == -1:
+        return ""
+
+    end_index = len(text)
+    for keyword in end_keywords:
+        temp_index = text.find(keyword, start_index)
+        if temp_index != -1:
+            end_index = min(end_index, temp_index)
+
+    return text[start_index:end_index].strip(" 
+:-")
+
+
+def find_major_candidates(text: str) -> list[str]:
+    """분석 텍스트에서 전공 후보를 찾는다."""
+    majors = [
+        "기계공학", "전자공학", "전기공학", "컴퓨터공학", "로봇공학",
+        "AI융합", "산업공학", "소프트웨어", "인공지능", "데이터사이언스"
+    ]
+    result = []
+    for major in majors:
+        if major in text and major not in result:
+            result.append(major)
+    return result
+
+
+def parse_ai_analysis(text: str) -> dict:
+    """AI 분석 결과 긴 글을 상담 시스템 입력 항목 형태로 변환한다."""
+    major_section = extract_section(text, ["추천 전공", "희망 전공"], ["학생 성향", "성적 구조", "교과 세특", "비교과", "공동체", "최종 역량"])
+    major_candidates = find_major_candidates(major_section or text)
+
+    upper_section = extract_section(text, ["상향"], ["적정", "안정", "핵심 한 줄", "상담 전략"])
+    target_section = extract_section(text, ["적정"], ["안정", "핵심 한 줄", "상담 전략"])
+    safe_section = extract_section(text, ["안정"], ["핵심 한 줄", "상담 전략"])
+
+    subject_section = extract_section(text, ["교과 세특 평가", "교과 세특", "수학"], ["비교과", "공동체", "최종 역량", "대학 지원"])
+    club_section = extract_section(text, ["비교과", "동아리"], ["공동체", "최종 역량", "대학 지원", "핵심 한 줄"])
+    career_section = extract_section(text, ["진로 일관성", "학생 성향", "상담 전략"], ["공동체", "최종 역량", "대학 지원", "면접 대비"])
+    strategy_section = extract_section(text, ["상담 전략"], ["교사용", "원하면", "부산대 합격"])
+    one_line = extract_section(text, ["핵심 한 줄 평가", "한 줄 평가"], ["상담 전략", "교사용", "원하면"])
+
+    academic_level = find_level(text, "학업역량", "중")
+    career_level = "상" if any(word in text for word in ["진로 일관성", "전공적합성", "매우 높음", "완벽한 흐름"]) else "중"
+    community_level = find_level(text, "공동체역량", "중")
+
+    desired_major_1 = major_candidates[0] if major_candidates else ""
+    desired_major_2 = major_candidates[1] if len(major_candidates) > 1 else ""
+
+    return {
+        "student_status": ["학생부종합"],
+        "desired_university_line": "부산권 국립대, 지역 거점 국립대, 지역 사립대 공대",
+        "desired_major_1": desired_major_1,
+        "desired_major_2": desired_major_2,
+        "priority_type": "대학·전공 균형",
+        "career_decision": "어느 정도 확정",
+        "subject_record": subject_section[:800],
+        "club_activity": club_section[:800],
+        "career_activity": career_section[:800],
+        "reading_activity": "학생부 원문에서 독서 및 기타 활동을 추가 확인할 필요가 있음.",
+        "academic_level": academic_level,
+        "career_level": career_level,
+        "community_level": community_level,
+        "upper_universities": upper_section[:500],
+        "target_universities": target_section[:500],
+        "safe_universities": safe_section[:500],
+        "admission_strategy": strategy_section[:800],
+        "strengths": (one_line or "전공 관련 탐구 흐름과 공학적 문제 해결 경험이 강점으로 보임.")[:500],
+        "improvements": "전공 선택의 우선순위를 명확히 하고, 면접에서 설명할 핵심 탐구 경험을 정리할 필요가 있음.",
+        "memo": text[:1200],
+        "next_plan": "기계·전자·컴퓨터 계열 중 주 전공 방향을 정하고, 핵심 탐구 2~3개를 면접 답변 형태로 정리하기."
+    }
+
+
+# ------------------------------
 # 로그인 함수
 # ------------------------------
 def check_password() -> bool:
@@ -264,7 +368,7 @@ def check_password() -> bool:
     if st.session_state["password_ok"]:
         return True
 
-    st.title("진학 상담 기록 및 분석 시스템")
+    st.title("고3 진학 상담 기록 및 분석 시스템")
     st.write("이 시스템은 상담 기록 보호를 위해 비밀번호 입력 후 사용할 수 있다.")
 
     password = st.text_input("비밀번호", type="password")
@@ -285,13 +389,13 @@ def check_password() -> bool:
 # ------------------------------
 def main() -> None:
     """Streamlit 메인 화면을 구성한다."""
-    st.set_page_config(page_title="진학 상담 기록 대시보드", layout="wide")
+    st.set_page_config(page_title="고3 진학 상담 기록 대시보드", layout="wide")
 
     if not check_password():
         st.stop()
 
-    st.title("진학 상담 기록 및 키워드 분석 대시보드")
-    st.write("담임 교사가 학생 상담 기록을 저장하고 요약할 수 있는 1차 버전이다.")
+    st.title("고3 진학 상담 기록 및 키워드 분석 대시보드")
+    st.write("고3 담임 및 진학 담당 교사가 학생 상담 기록을 저장하고 요약할 수 있는 1차 버전이다.")
 
     with st.sidebar:
         st.header("안내")
@@ -325,6 +429,24 @@ def main() -> None:
         st.info(f"현재 {loaded_record.get('student_code', '')} 학생의 최신 상담 기록을 불러온 상태입니다. 수정 후 저장하면 새 상담 기록으로 추가됩니다.")
         if st.button("불러온 내용 초기화"):
             st.session_state["loaded_record"] = None
+            st.rerun()
+
+    st.subheader("0-1. AI 분석 결과 자동 분류")
+    ai_text = st.text_area(
+        "AI가 정리한 학생부 분석 결과 붙여넣기",
+        placeholder="학생부 분석 결과를 여기에 그대로 붙여넣고, 아래 버튼을 누르면 입력칸에 자동 반영됩니다.",
+        height=180
+    )
+
+    if st.button("AI 분석 결과를 입력칸에 반영", use_container_width=True):
+        if not ai_text.strip():
+            st.warning("AI 분석 결과 텍스트를 먼저 붙여넣어 주세요.")
+        else:
+            parsed_record = parse_ai_analysis(ai_text)
+            if student_code := st.session_state.get("temp_student_code"):
+                parsed_record["student_code"] = student_code
+            st.session_state["loaded_record"] = parsed_record
+            st.success("AI 분석 결과를 입력칸에 반영했습니다. 아래 항목을 확인하고 필요한 부분을 수정하세요.")
             st.rerun()
 
     st.subheader("1. 학생 기본 정보")
