@@ -291,8 +291,7 @@ def extract_section(text: str, start_keywords: list[str], end_keywords: list[str
         if temp_index != -1:
             end_index = min(end_index, temp_index)
 
-    return text[start_index:end_index].strip(" 
-:-")
+    return text[start_index:end_index].strip(" \n:-")
 
 
 def find_major_candidates(text: str) -> list[str]:
