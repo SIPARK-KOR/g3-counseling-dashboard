@@ -228,14 +228,21 @@ def color_level(level: str) -> str:
 
 
 def plot_grade_chart(korean_gpa, math_gpa, english_gpa, inquiry_gpa):
+    import matplotlib.pyplot as plt
+
+    # ⭐ 한글 깨짐 해결
+    plt.rcParams['font.family'] = 'Malgun Gothic'
+    plt.rcParams['axes.unicode_minus'] = False
+
     labels = ["국어", "수학", "영어", "탐구"]
     values = [korean_gpa, math_gpa, english_gpa, inquiry_gpa]
 
     fig, ax = plt.subplots()
 
     ax.bar(labels, values)
-    ax.set_ylim(0, 10)        # ⭐ 마이너스 제거
-    ax.invert_yaxis()         # ⭐ 1등급이 위로 (추천)
+
+    # ⭐ 막대 방향 정상 + 1등급 위
+    ax.set_ylim(10, 0)
 
     st.pyplot(fig)
 
